@@ -1,38 +1,128 @@
-from collections import namedtuple
-import altair as alt
-import math
-import pandas as pd
 import streamlit as st
+import cv2 as cv
+from PIL import Image,ImageEnhance
+import numpy as np
 
-"""
-# Welcome to Streamlit!
-
-Edit `/streamlit_app.py` to customize this app to your heart's desire :heart:
-
-If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
-forums](https://discuss.streamlit.io).
-
-In the meantime, below is an example of what you can do with just a few lines of code:
-"""
+import PIL
+import numpy
 
 
-with st.echo(code_location='below'):
-    total_points = st.slider("Number of points in spiral", 1, 5000, 2000)
-    num_turns = st.slider("Number of turns in spiral", 1, 100, 9)
+def detect(image):
+    '''
+    Function to detect circles
+    '''
+    pil_image = image.convert('RGB') 
+    img = numpy.array(pil_image) 
+    # Convert RGB to BGR 
+    img = img[:, :, ::-1].copy()
+    
+    output = img.copy()
+    gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    gray = cv.medianBlur(gray, 5)
+    
 
-    Point = namedtuple('Point', 'x y')
-    data = []
 
-    points_per_turn = total_points / num_turns
+    circles = cv.HoughCircles(gray, cv.HOUGH_GRADIENT, 0.5, 1,
+                              param1=50, param2=30, minRadius=10, maxRadius=20)
+    detected_circles = np.uint16(np.around(circles))
+    for (x, y ,r) in detected_circles[0, :]:
+        cv.circle(output, (x, y), r+5, (0, 0, 0), -1)
+        #cv.circle(output, (x, y), 2, (0, 255, 255), 3)
+    cv.imwrite('0.png',output)
+    
+        
+    img=cv.imread('0.png')
+    output = img.copy()
+    gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    gray = cv.medianBlur(gray, 9)
 
-    for curr_point_num in range(total_points):
-        curr_turn, i = divmod(curr_point_num, points_per_turn)
-        angle = (curr_turn + 1) * 2 * math.pi * i / points_per_turn
-        radius = curr_point_num / total_points
-        x = radius * math.cos(angle)
-        y = radius * math.sin(angle)
-        data.append(Point(x, y))
+    
+    circles = cv.HoughCircles(gray, cv.HOUGH_GRADIENT, 0.5, 1,
+                                  param1=50, param2=30, minRadius=min_rad, maxRadius=20)
+    detected_circles = np.uint16(np.around(circles))
+    for (x, y ,r) in detected_circles[0, :]:
+        cv.circle(output, (x, y), r+5, (0, 0, 0), -1)
+        #cv.circle(output, (x, y), 2, (0, 255, 255), 3)
+    cv.imwrite('1.png',output)
 
-    st.altair_chart(alt.Chart(pd.DataFrame(data), height=500, width=500)
-        .mark_circle(color='#0068c9', opacity=0.5)
-        .encode(x='x:Q', y='y:Q'))
+
+    
+
+
+    
+
+
+  
+    
+    return output
+    
+    
+
+
+
+def about():
+    st.write(
+        '''
+        contact email - tanbinhasnat04@gmail.com
+        ''')
+
+
+def main():
+    st.title("circle Detection App :sunglasses: ")
+    st.write("**Using the Haar cascade Classifiers**")
+
+    activities = ["Home", "About"]
+    choice = st.sidebar.selectbox("Pick something fun", activities)
+
+    if choice == "Home":
+
+        st.write("Go to the About section from the sidebar to learn more about it.")
+        
+        # You can specify more file types below if you want
+        image_file = st.file_uploader("Upload image", type=['jpeg', 'png', 'jpg', 'webp'])
+        print(type(image_file))
+        global min_rad
+        min_rad=st.slider('mir radius : ',value=5)
+        st.write('min radius ',min_rad)
+
+        br=st.slider('Brightness : ',value=1.4,min_value=1.0,max_value=4.0,step=0.1)
+        st.write('Brightness ',br)
+
+        con=st.slider('contrast : ',value=1.5,min_value=1.0,max_value=4.0,step=0.1)
+        st.write('contrast ',con)
+
+        sh=st.slider('sharpness : ',value=1.0,min_value=1.0,max_value=4.0,step=0.1)
+        st.write('sharpness ',sh)
+
+
+        if image_file is not None:
+
+            image = Image.open(image_file)
+
+            
+            enhencer=ImageEnhance.Brightness(image)
+            image=enhencer.enhance(br)
+            enhencer=ImageEnhance.Contrast(image)
+            image=enhencer.enhance(con)
+            enhencer=ImageEnhance.Sharpness(image)
+            image=enhencer.enhance(sh)
+
+            
+
+
+            if st.button("Process"):
+
+                
+                # result_img is the image with rectangle drawn on it (in case there are faces detected)
+                # result_faces is the array with co-ordinates of bounding box(es)
+                result_img = detect(image=image)
+                st.image(result_img, use_column_width = True)
+
+    elif choice == "About":
+        about()
+
+
+
+
+if __name__ == "__main__":
+    main()
